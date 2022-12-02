@@ -22,14 +22,14 @@ def validate_data(test_jsonfile, true_jsonfile):
         test_data_raw = json.load(f)
 
         # format the data
-        test_data = test_data_raw.get("jobs", [])
+        test_data = test_data_raw.get("jobs", []).sort()
 
     # get data that we know to be correct
     with open(true_jsonfile, "r") as f:
         true_data_raw = json.load(f)
 
         # format the data
-        true_data = list(true_data_raw.values())
+        true_data = list(true_data_raw.values()).sort()
 
     # compare the data
     return test_data == true_data

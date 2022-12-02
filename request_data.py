@@ -24,19 +24,21 @@ A basic webserver can be run using the following command:
     python basic_webservice.py
 
 """
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import math
 import json
 import requests
 from tornado.options import define, options, parse_command_line
 
 # define command-line inputs
-define("num_requests", default=2000, help="number of requests to make to the resource", type=int)
+define("num_requests", default=2000, help="number of requests to be sent", type=int)
 define("output_file", default="output.json", help="output JSON file path", type=str)
-define("ip_address", default="127.0.0.1", help="connect to server at this ip address", type=str)
-define("port", default="8000", help="connect to server on this port", type=int)
-define("resource_path", default="getjobdetails/", help="base url for resource", type=str)
+define("host", default="127.0.0.1", help="server(host) address", type=str)
+define("port", default=8000, help="connect to server on this port", type=int)
+define("resource_path", default="", help="path to resource, appended onto base URL", type=str)
 define("request_timeout", default=60, help="timeout for request (units: seconds)", type=int)
+define("max_threads", default=-1, help="max threads that can be created, a value of -1 indicates that there "
+                                       "should be no limit (units: seconds)", type=int)
 
 
 def submit_request(job_num):
@@ -49,8 +51,9 @@ def submit_request(job_num):
     :rtype: dict
     """
     # assemble url
-    url = "http://" + options.ip_address + ":" + str(options.port) + "/" + options.resource_path.strip("/") + "/" + str(
-        job_num)
+    if options.resource_path:
+        options.resource_path = options.resource_path.strip('/') + '/'
+    url = "http://%s:%u/%s%u" % (options.host, options.port, options.resource_path, job_num)
 
     # fetch the data
     response = requests.get(url, timeout=options.request_timeout)
@@ -82,35 +85,42 @@ def split(lrange, new_size):
 
     :param Iterable lrange: iterable object (e.g. range(10))
     :param int new_size: desired size of each returned object
-    :return: iterables (each of same type as `a`). Each tuple will be, at most, size `n`
-    :rtype: tuple
+    :return: iterable of size `new_size` or `new_size - 1` (each of same type as `lrange`)
+    :rtype: generator
     """
     quo, rem = divmod(len(lrange), new_size)
-    return (lrange[k * quo + min(k, rem):(k + 1) * quo + min(k + 1, rem)] for k in range(new_size))
+    for k in range(new_size):
+        yield lrange[k * quo + min(k, rem):(k + 1) * quo + min(k + 1, rem)]
 
 
-def main(*args):
+def request_data(*args):
     # parse program input
     parse_command_line(*args)
 
     # define the number of threads to use
     # this approach uses a percentage of the number of requests, up to a limit (as to not overwhelm anything)
-    # note: just one of many ways to determine this and probably not the most optimal
-    thread_limit = 500  # TODO: arbitrary for now but should figure a good way to determine this value or even if it's needed
-    percentage = 0.8  # TODO: this is a lever to optimize runtime and should come from ML and actual data from testing
-    num_threads = n if (n := math.ceil(options.num_requests * percentage)) < thread_limit else thread_limit
+    # note: this is just one of many ways to cap CPU and connection loads and this is definitely not the most optimal
+    # (overloading of connections depends on more than just the number of requests)
+    # if both client and server can handle it, num_threads should equal num_requests (this is the default behavior)
+    percentage = 1  # TODO: this is a lever to optimize runtime on low-end hardware and server and should come from ML
+                    # and/or actual data from testing (ideal: p = 1)
+    n_thr = math.ceil(options.num_requests * percentage)
+    if n_thr < options.max_threads or options.max_threads < 1:
+        num_threads = n_thr
+    else:
+        num_threads = options.max_threads
 
     # generate ranges of ids each thread will be responsible for
-    worker_ranges = split(range(options.num_requests), num_threads)
+    assignments = split(range(options.num_requests), num_threads)
 
     # create thread pools
     result = []
     with ThreadPoolExecutor(max_workers=num_threads) as executor:
         # submit tasks and collect futures
-        futures = [executor.submit(batch_request, r) for r in worker_ranges]
+        futures = (executor.submit(batch_request, r) for r in assignments)
 
         # process task results
-        for future in futures:
+        for future in as_completed(futures):
             # validate response and then add to list of results
             result.extend(v for d in future.result() if (v := d.get("jobId", None)))
 
@@ -120,4 +130,5 @@ def main(*args):
 
 
 if __name__ == '__main__':
-    main()
+    # start requests
+    request_data()

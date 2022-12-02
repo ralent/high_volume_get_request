@@ -69,38 +69,28 @@ Usage: python request_data.py [OPTIONS]
 Options:
 
   --help                           show this help information
-  
-  --ip-address                     connect to server at this ip address (default: 127.0.0.1)
-                                   
-  --request_time                   timeout for request (units: seconds) (default: 60)
-                                   
-  --num-requests                   number of requests to make to the resource (default: 2000)
-                                   
+  --host                           server(host) address (default: "127.0.0.1")
+  --max-threads                    max threads that can be created, a value of -1 indicates that 
+                                   there should be no limit (units: seconds) (default -1)           
+  --num-requests                   number of requests to be sent (default: 2000)
   --output-file                    output JSON file path (default: "output.json")
-  
   --port                           connect to server on this port (default: 8000)
-                                   
-  --resource-path                  base url for resource (default: "getjobdetails/")   
+  --request_time                   timeout for request (units: seconds) (default: 60)
+  --resource-path                  path to resource, appended onto base URL (default: None)   
 ```
 
 ```commandline
-Usage: python basic_webservice.py [OPTIONS]
+Usage: python http_webserver.py [OPTIONS]
 
 Options:
 
   --help                           show this help information
-
   --delay-max                      maximum artificial delay for GET requests (units: seconds) (default: 10)
-                                   
   --delay-min                      minimum artificial delay for GET requests (units: seconds) (default: 1)
-                                   
+  --host                           bind server to this host (e.g. 127.0.0.1) (default "127.0.0.1")
   --input-file                     file path to JSON data that will be fetched (default: "jobDetails.json")
-                                   
   --max-jobs                       max number of jobs (default: 2000)
-  
-  --port                           run on the given port (default: 8000)
-  
-  --resource-path                  url suffix where data will be available (default: "getjobdetails/")
+  --port                           connect to server on this port (default: 8000)
 ```
 
 ```commandline
@@ -109,9 +99,7 @@ Usage: python validate.py [OPTIONS]
 Options:
 
   --help                           show this help information
-
   --input-file                     file path to JSON data that will be fetched (default: "jobDetails.json")
-                                   
   --output-file                    output JSON file path (default: "output.json")
 
 ```
